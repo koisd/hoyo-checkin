@@ -1,0 +1,38 @@
+name: Điểm danh Genshin
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 08:30 giờ Việt Nam mỗi ngày (GitHub có thể chạy trễ vài chục phút)
+  workflow_dispatch:        # cho phép bấm chạy tay trong tab Actions
+
+permissions:
+  contents: write           # để lưu danh sách code đã báo
+
+concurrency: checkin
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Điểm danh + kiểm tra code mới
+        env:
+          HOYO_ACCOUNTS: ${{ secrets.HOYO_ACCOUNTS }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python checkin.py
+      - name: Lưu danh sách code đã báo
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain seen_codes.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen_codes.json
+            git commit -m "Cập nhật code đã báo"
+            git push
+          fi
